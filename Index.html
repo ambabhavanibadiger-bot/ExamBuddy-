@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ExamBuddy</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 20px;
+    font-family: Arial, sans-serif;
+    background: #f2edff;
+    color: #28213b;
+}
+
+.container {
+    max-width: 500px;
+    margin: auto;
+}
+
+h1 {
+    text-align: center;
+    color: #673ab7;
+}
+
+.subtitle {
+    text-align: center;
+    color: #665b79;
+}
+
+.card {
+    background: white;
+    padding: 18px;
+    margin: 16px 0;
+    border-radius: 16px;
+    box-shadow: 0 3px 12px #d8cbed;
+}
+
+input, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 9px;
+    font-size: 16px;
+}
+
+input {
+    border: 1px solid #cfc3e8;
+}
+
+button {
+    border: none;
+    background: #673ab7;
+    color: white;
+    cursor: pointer;
+}
+
+button:active {
+    opacity: 0.8;
+}
+
+.exam {
+    border-left: 5px solid #673ab7;
+}
+
+.exam h3 {
+    margin-top: 0;
+}
+
+.days {
+    color: #673ab7;
+    font-weight: bold;
+}
+
+.progress-track {
+    height: 12px;
+    background: #e8e0f5;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0%;
+    background: #7c4dff;
+    transition: width 0.3s;
+}
+
+.progress-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.progress-buttons button {
+    flex: 1;
+}
+
+.delete {
+    background: #e53935;
+}
+
+.empty {
+    text-align: center;
+    color: #756a86;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>📚 ExamBuddy</h1>
+<p class="subtitle">Your exams, your goals, your success!</p>
+
+<div class="card">
+    <h2>➕ Add an Exam</h2>
+
+    <form id="examForm">
+        <input
+            type="text"
+            id="examName"
+            placeholder="Enter exam name"
+            required
+        >
+
+        <label for="examDate">Exam date:</label>
+        <input
+            type="date"
+            id="examDate"
+            required
+        >
+
+        <button type="submit">Add Exam</button>
+    </form>
+</div>
+
+<h2>⏳ Exam Countdown</h2>
+<div id="examList"></div>
+
+<p class="subtitle">Made with ❤️ using ExamBuddy</p>
+
+</div>
+
+<script>
+const form = document.getElementById("examForm");
+const examName = document.getElementById("examName");
+const examDate = document.getElementById("examDate");
+const examList = document.getElementById("examList");
+
+let exams = [];
+
+try {
+    exams = JSON.parse(localStorage.getItem("examBuddyExams")) || [];
+} catch (error) {
+    exams = [];
+}
+
+function saveExams() {
+    localStorage.setItem("examBuddyExams", JSON.stringify(exams));
+}
+
+function renderExams() {
+    examList.innerHTML = "";
+
+    if (exams.length === 0) {
+        examList.innerHTML =
+            '<div class="card empty">No exams added yet. Add your first exam above! 😊</div>';
+        return;
+    }
+
+    exams.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    exams.forEach(function(exam) {
+        if (typeof exam.progress !== "number") {
+            exam.progress = 0;
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const target = new Date(exam.date + "T00:00:00");
+        const days = Math.ceil((target - today) / 86400000);
+
+        let countdown;
+
+        if (days < 0) {
+            countdown = "Exam date has passed";
+        } else if (days === 0) {
+            countdown = "🎉 Your exam is today!";
+        } else {
+            countdown = days + " day(s) remaining";
+        }
+
+        const card = document.createElement("div");
+        card.className = "card exam";
+
+        const title = document.createElement("h3");
+        title.textContent = "📖 " + exam.name;
+
+        const dateText = document.createElement("p");
+        dateText.textContent = "Date: " + exam.date;
+
+        const countdownText = document.createElement("p");
+        countdownText.className = "days";
+        countdownText.textContent = "⏳ " + countdown;
+
+        const progressTitle = document.createElement("h4");
+        progressTitle.textContent = "📊 Study Progress";
+
+        const percentage = document.createElement("p");
+        percentage.textContent = exam.progress + "% completed";
+
+        const track = document.createElement("div");
+        track.className = "progress-track";
+
+        const fill = document.createElement("div");
+        fill.className = "progress-fill";
+        fill.style.width = exam.progress + "%";
+
+        track.appendChild(fill);
+
+        const progressButtons = document.createElement("div");
+        progressButtons.className = "progress-buttons";
+
+        const minusButton = document.createElement("button");
+        minusButton.textContent = "− 10%";
+
+        minusButton.onclick = function() {
+            exam.progress = Math.max(0, exam.progress - 10);
+            saveExams();
+            renderExams();
+        };
+
+        const plusButton = document.createElement("button");
+        plusButton.textContent = "+ 10%";
+
+        plusButton.onclick = function() {
+            exam.progress = Math.min(100, exam.progress + 10);
+            saveExams();
+            renderExams();
+        };
+
+        const deleteButton = document.createElement("button");
+        deleteButton.textContent = "Delete Exam";
+        deleteButton.className = "delete";
+
+        deleteButton.onclick = function() {
+            if (confirm("Delete this exam?")) {
+                exams = exams.filter(function(item) {
+                    return item.id !== exam.id;
+                });
+
+                saveExams();
+                renderExams();
+            }
+        };
+
+        progressButtons.appendChild(minusButton);
+        progressButtons.appendChild(plusButton);
+
+        card.appendChild(title);
+        card.appendChild(dateText);
+        card.appendChild(countdownText);
+        card.appendChild(progressTitle);
+        card.appendChild(percentage);
+        card.appendChild(track);
+        card.appendChild(progressButtons);
+        card.appendChild(deleteButton);
+
+        examList.appendChild(card);
+    });
+
+    saveExams();
+}
+
+form.addEventListener("submit", function(event) {
+    event.preventDefault();
+
+    const name = examName.value.trim();
+    const date = examDate.value;
+
+    if (!name || !date) {
+        alert("Please enter the exam name and date.");
+        return;
+    }
+
+    const selectedDate = new Date(date + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate < today) {
+        alert("Please select today or a future date.");
+        return;
+    }
+
+    exams.push({
+        id: Date.now().toString(),
+        name: name,
+        date: date,
+        progress: 0
+    });
+
+    saveExams();
+    form.reset();
+    renderExams();
+});
+
+renderExams();
+</script>
+
+</body>
+</html>
